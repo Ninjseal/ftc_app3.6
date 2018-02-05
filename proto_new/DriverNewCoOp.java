@@ -224,6 +224,7 @@ public class DriverNewCoOp extends LinearOpMode {
         leftMotorB.setPower(0);
         rightMotorF.setPower(0);
         rightMotorB.setPower(0);
+        cubesMotor.setPower(0);
     }
     //StopMotors
 
