@@ -8,49 +8,60 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
+import org.firstinspires.ftc.robotcore.external.ClassFactory;
+import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
+import org.firstinspires.ftc.robotcore.external.navigation.RelicRecoveryVuMark;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackable;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackables;
+
 /**
  * Created by Purplecoder 27/01/2018.
  */
 
 public abstract class AutonomousMode extends LinearOpMode {
-
     // Motors
-    private DcMotor cubesMotor = null;
+    protected DcMotor cubesMotor = null;
     protected DcMotor leftMotorF = null;
     protected DcMotor leftMotorB = null;
     protected DcMotor rightMotorF = null;
     protected DcMotor rightMotorB = null;
+
     // Servos
-    private Servo servoArm = null;
-    private Servo servoColor = null;
-    private Servo servoCubesLeft = null;
-    private Servo servoCubesRight = null;
+    protected Servo servoArm = null;
+    protected Servo servoColor = null;
+    protected Servo servoCubesLeft = null;
+    protected Servo servoCubesRight = null;
 
     // Sensors
-
-    //protected ModernRoboticsI2cGyro gyroSensor = null;
+    protected ModernRoboticsI2cGyro gyroSensor = null;
     protected ColorSensor colorSensor = null;
     //protected OpticalDistanceSensor odsSensor = null;
     //protected ModernRoboticsI2cRangeSensor rangeSensor = null;
 
-
     // Constants
-    private static final double ARM_UP = 0.96;
-    private static final double ARM_DOWN = 0.25;
-    private static final double COLOR_FORWARD = 0.0;
-    private static final double COLOR_BACK = 1.0;
-    private static final double MID_SERVO = 0.5;
-    private static final double CUBES_MIN = 0.65;
-    private static final double CUBES_MAX = 0.8;
+    protected static final double ARM_UP = 0.96;
+    protected static final double ARM_DOWN = 0.25;
+    protected static final double COLOR_FORWARD = 0.0;
+    protected static final double COLOR_BACK = 1.0;
+    protected static final double MID_SERVO = 0.5;
+    protected static final double CUBES_MIN = 0.65;
+    protected static final double CUBES_MAX = 0.8;
+    protected static final double LIFT_MAX = 5000;
+    protected static final double COUNTS_PER_CM = 67;
 
     protected ElapsedTime runtime = new ElapsedTime();
 
+    //Vuforia
+    public static final String TAG = "Vuforia VuMark Sample";
+    OpenGLMatrix lastLocation = null;
+    VuforiaLocalizer vuforia;
 
     @Override
     public void runOpMode() throws InterruptedException {
         initOpMode();
 
-        while (!isStopRequested() && opModeIsActive()) {
+        while (!isStopRequested() && gyroSensor.isCalibrating() && opModeIsActive()) {
             sleep(50);
             idle();
         }
@@ -73,7 +84,7 @@ public abstract class AutonomousMode extends LinearOpMode {
     protected abstract void runOp() throws InterruptedException;
     protected abstract void exitOpMode() throws InterruptedException;
 
-    public void initHardware() {
+    protected void initHardware() {
         // Map the motors
         leftMotorF = hardwareMap.dcMotor.get("left_drive_front");
         leftMotorB = hardwareMap.dcMotor.get("left_drive_back");
@@ -86,9 +97,8 @@ public abstract class AutonomousMode extends LinearOpMode {
         servoCubesLeft = hardwareMap.servo.get("cubes_left");
         servoCubesRight = hardwareMap.servo.get("cubes_right");
         // Map the sensors
-        //gyroSensor = (ModernRoboticsI2cGyro) hardwareMap.gyroSensor.get("gyro");
+        gyroSensor = (ModernRoboticsI2cGyro) hardwareMap.gyroSensor.get("gyro");
         colorSensor = hardwareMap.get(ColorSensor.class, "color");
-        //colorSensor = hardwareMap.colorSensor.get("color");
         // Set the wheel motors
         leftMotorF.setDirection(DcMotor.Direction.REVERSE);
         leftMotorB.setDirection(DcMotor.Direction.REVERSE);
@@ -119,6 +129,7 @@ public abstract class AutonomousMode extends LinearOpMode {
         leftMotorB.setPower(0);
         rightMotorF.setPower(0);
         rightMotorB.setPower(0);
+        cubesMotor.setPower(0);
         // Initialize servo positions
         servoArm.setPosition(ARM_UP);
         servoColor.setPosition(MID_SERVO);
@@ -127,11 +138,9 @@ public abstract class AutonomousMode extends LinearOpMode {
         
         // Calibrate sensors
         colorSensor.enableLed(true);
-        //gyroSensor.calibrate();
+        gyroSensor.calibrate();
 
-       // while(gyroSensor.getHeading() != 0);
-
-        wait(1.0);
+        //while(gyroSensor.getHeading() != 0);
     }
 
     // Wait for a number of seconds
@@ -145,6 +154,7 @@ public abstract class AutonomousMode extends LinearOpMode {
     }
     //Wait
 
+    // Autonomous ball selection
     protected void ball_auto(boolean red_team){
 
         servoColor.setPosition(MID_SERVO);
@@ -178,12 +188,171 @@ public abstract class AutonomousMode extends LinearOpMode {
             }
         }
 
-        wait(3.0);
-
+        wait(2.0);
         servoArm.setPosition(ARM_UP);
+        wait(2.0);
         servoColor.setPosition(COLOR_BACK);
-
     }
+    //AutonomousBall
+
+    // Lift the cubes to the target specified with a desired power
+    protected void cubes_to_position(int power, int target){
+        target = (int)Range.clip(target, 0, LIFT_MAX);
+
+        cubesMotor.setTargetPosition(target);
+        cubesMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        cubesMotor.setPower(Range.clip(power, -1,1));
+
+        while(cubesMotor.isBusy() && opModeIsActive()){
+            idle();
+        }
+
+        cubesMotor.setPower(0);
+        cubesMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    }
+    //CubesToPosition
+
+    // Toggle function for grabbing the cube
+    protected void grab_cube(boolean grab){
+        if(grab){
+            servoCubesLeft.setPosition(CUBES_MIN);
+            servoCubesRight.setPosition(CUBES_MIN);
+        } else {
+            servoCubesLeft.setPosition(CUBES_MAX);
+            servoCubesRight.setPosition(CUBES_MAX);
+        }
+    }
+    //GrabCube
+
+    // Gyro Rotation function using rampUp
+    protected  void rotate_ticks(int target, int trigo){
+        leftMotorF.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        leftMotorB.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightMotorF.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightMotorB.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        rightMotorF.setTargetPosition(target);
+        rightMotorB.setTargetPosition(target);
+        leftMotorF.setTargetPosition(target);
+        leftMotorB.setTargetPosition(target);
+
+        double power = 0.1, increment = 0.1, MAX_FWD = 0.9;
+        boolean rampUp = true;
+
+
+        while(opModeIsActive()&& (leftMotorB.isBusy() || leftMotorF.isBusy() ||
+                rightMotorB.isBusy() || rightMotorF.isBusy())){
+            if (rampUp) {
+                // Keep stepping up until we hit the max value.
+                power += increment ;
+                if (power >= MAX_FWD ) {
+                    power = MAX_FWD;
+                    rampUp = !rampUp;   // Switch ramp direction
+                }
+            }
+            else {
+                // Keep stepping down until we hit the min value.
+                power -= increment;
+            }
+            power = Range.clip(power, 0, 0.9);
+            power_wheels(-trigo*power, -trigo*power, power, power);
+        }
+        stopWheels();
+    }
+    //RotateTicks
+
+    // Move forward to a target using encoders
+    protected void run_forward(int target) {
+        leftMotorF.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        leftMotorB.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightMotorF.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightMotorB.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        rightMotorF.setTargetPosition(target);
+        rightMotorB.setTargetPosition(target);
+        leftMotorF.setTargetPosition(target);
+        leftMotorB.setTargetPosition(target);
+
+        double power = 0.1, increment = 0.1, MAX_FWD = 0.9;
+        boolean rampUp = true;
+
+        while(opModeIsActive()&& (leftMotorB.isBusy() || leftMotorF.isBusy() ||
+                rightMotorB.isBusy() || rightMotorF.isBusy())){
+            if (rampUp) {
+                // Keep stepping up until we hit the max value.
+                power += increment ;
+                if (power >= MAX_FWD ) {
+                    power = MAX_FWD;
+                    rampUp = !rampUp;   // Switch ramp direction
+                }
+            }
+            else {
+                // Keep stepping down until we hit the min value.
+                power -= increment;
+            }
+            power = Range.clip(power, 0, 0.9);
+            power_wheels(power, power, power, power);
+        }
+        stopWheels();
+    }
+    //RunForward
+
+    // Vuforia image recognition
+    protected int activate_vuforia()  {
+        int rez = -1, cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+        VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters(cameraMonitorViewId);
+
+        parameters.vuforiaLicenseKey = "AcO14uD/////AAAAmUILEtDJVkPbjdTr7NZGRE1UskK3HPIjKtoC7tONYCaYenUf9sRjducLbUEn0Cu8Eh3lrEVqM7VbF5MXcNfFyS39uTN3t7PtjK8HLcFpFsgTLRFwAGJlhcX+OFgqsjzPSiyE8v7Z+XIYwMhKf2Z2XmTQOCa6vXLL30nw3iLnE6J2Q5QFnNw/+AFLA881KCVYSeGBtujTRvfloxYCMYon30C1uwWB0txP4s7K1FukBiyfKScQFj7CwS+27BsSajo8lstaPwlSw5LssYO0cEbNQmi31q1meclqCkTL0nRVZcdj+UrfutQms0Ledjs6N8+bQg/qxo//KsFZ7pGZsCO3HIyrVKTEadLDzg+3KV7EJhNV";
+
+        parameters.cameraDirection = VuforiaLocalizer.CameraDirection.BACK;
+        this.vuforia = ClassFactory.createVuforiaLocalizer(parameters);
+
+        VuforiaTrackables relicTrackables = this.vuforia.loadTrackablesFromAsset("RelicVuMark");
+        VuforiaTrackable relicTemplate = relicTrackables.get(0);
+        relicTemplate.setName("relicVuMarkTemplate"); // can help in debugging; otherwise not necessary
+
+        RelicRecoveryVuMark vuMark = RelicRecoveryVuMark.from(relicTemplate);
+        switch(vuMark) {
+            case LEFT:
+                rez = 1;
+                break;
+
+            case CENTER:
+                rez = 2;
+                break;
+
+            case RIGHT:
+                rez = 3;
+                break;
+
+            case UNKNOWN:
+                rez = 0;
+                break;
+        }
+            telemetry.addData("VuMark", "%s visible", vuMark);
+            telemetry.update();
+
+        return rez;
+    }
+    //ActivateVuforia
+
+    // Power the wheel motors with values given
+    protected void power_wheels(double leftPowerF, double leftPowerB, double rightPowerF, double rightPowerB) {
+        leftMotorF.setPower(Range.clip(leftPowerF, -1, 1));
+        leftMotorB.setPower(Range.clip(leftPowerB, -1, 1));
+        rightMotorF.setPower(Range.clip(rightPowerF, -1, 1));
+        rightMotorB.setPower(Range.clip(rightPowerB, -1, 1));
+    }
+    //PowerWheels
+
+    // Move the robot based on left and right powers
+    protected void move(double leftWheelsPower, double rightWheelsPower) {
+        leftMotorF.setPower(Range.clip(leftWheelsPower, -1, 1));
+        leftMotorB.setPower(Range.clip(leftWheelsPower, -1, 1));
+        rightMotorF.setPower(Range.clip(rightWheelsPower, -1, 1));
+        rightMotorB.setPower(Range.clip(rightWheelsPower, -1, 1));
+    }
+    //Move
 
     // This function stops all the wheels of the robot
     protected void stopWheels() {

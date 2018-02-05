@@ -15,9 +15,10 @@ public class Red_test extends AutonomousMode {
         initHardware();
     }
 
+    @Override
     protected void runOp() throws InterruptedException {
-
         ball_auto(true);
+
         wait(1000);
 
         telemetry.addData("Done!", "Exiting...");
@@ -25,6 +26,7 @@ public class Red_test extends AutonomousMode {
         sleep(1000);
     }
 
+    @Override
     protected void exitOpMode() throws InterruptedException {
         stopMotors();
     }

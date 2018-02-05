@@ -17,6 +17,7 @@ public class Blue_test extends AutonomousMode {
         telemetry.update();
     }
 
+    @Override
     protected void runOp() throws InterruptedException {
         ball_auto(false);
 
@@ -27,6 +28,7 @@ public class Blue_test extends AutonomousMode {
         sleep(1000);
     }
 
+    @Override
     protected void exitOpMode() throws InterruptedException {
         stopMotors();
     }

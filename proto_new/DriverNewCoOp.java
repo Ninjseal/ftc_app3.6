@@ -35,8 +35,8 @@ public class DriverNewCoOp extends LinearOpMode {
     private static final double EXTENSION_DOWN = 0.0;
     private static final double ARM_UP = 0.96;
     private static final double ARM_DOWN = 0.25;
-    private static final double COLOR_LEFT = 0.0;
-    private static final double COLOR_RIGHT = 1.0;
+    private static final double COLOR_FORWARD = 0.0;
+    private static final double COLOR_BACK = 1.0;
     private static final double MID_SERVO = 0.5;
     private static final double CUBES_MIN = 0.65;
     private static final double CUBES_MAX = 0.8;
@@ -99,7 +99,7 @@ public class DriverNewCoOp extends LinearOpMode {
         //servoClaw.setPosition(CLAW_DOWN);
         //servoExtension.setPosition(EXTENSION_DOWN);
         servoArm.setPosition(ARM_UP);
-        servoColor.setPosition(COLOR_RIGHT);
+        servoColor.setPosition(COLOR_BACK);
         servoCubesRight.setPosition(CUBES_MIN);
         servoCubesLeft.setPosition(CUBES_MIN);
 
