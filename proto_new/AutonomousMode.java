@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.proto_new;
 
 import com.qualcomm.hardware.modernrobotics.ModernRoboticsI2cGyro;
+import com.qualcomm.hardware.modernrobotics.ModernRoboticsI2cRangeSensor;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -11,6 +12,7 @@ import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.ClassFactory;
 import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.RelicRecoveryVuMark;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackable;
@@ -33,21 +35,14 @@ public abstract class AutonomousMode extends LinearOpMode {
     protected Servo servoColor = null;
     protected Servo servoCubesLeft = null;
     protected Servo servoCubesRight = null;
-    protected Servo servoClaw = null;
-    protected Servo servoExtension  = null;
 
     // Sensors
     protected ModernRoboticsI2cGyro gyroSensor = null;
     protected ColorSensor colorSensor = null;
     //protected OpticalDistanceSensor odsSensor = null;
-    //protected ModernRoboticsI2cRangeSensor rangeSensor = null;
+    protected ModernRoboticsI2cRangeSensor rangeSensor = null;
 
     // Constants
-    private static final double CLAW_UP = 0.5;
-    private static final double CLAW_DOWN = 0.06;
-    private static final double EXTENSION_UP = 0.0;
-    private static final double EXTENSION_MID = 0.5;
-    private static final double EXTENSION_DOWN = 1.0;
     protected static final double ARM_UP = 0.96;
     protected static final double ARM_DOWN = 0.33;
     protected static final double COLOR_FORWARD = 0.0;
@@ -105,11 +100,10 @@ public abstract class AutonomousMode extends LinearOpMode {
         servoColor = hardwareMap.servo.get("colorS");
         servoCubesLeft = hardwareMap.servo.get("cubes_left");
         servoCubesRight = hardwareMap.servo.get("cubes_right");
-        servoClaw = hardwareMap.servo.get("claw");
-        servoExtension = hardwareMap.servo.get("extension");
         // Map the sensors
         gyroSensor = (ModernRoboticsI2cGyro) hardwareMap.gyroSensor.get("gyro");
         colorSensor = hardwareMap.get(ColorSensor.class, "color");
+        rangeSensor = hardwareMap.get(ModernRoboticsI2cRangeSensor.class, "sensor_range");
         // Set the wheel motors
         leftMotorF.setDirection(DcMotor.Direction.FORWARD);
         leftMotorB.setDirection(DcMotor.Direction.FORWARD);
@@ -142,21 +136,19 @@ public abstract class AutonomousMode extends LinearOpMode {
         rightMotorB.setPower(0);
         cubesMotor.setPower(0);
         // Initialize servo positions
-        servoClaw.setPosition(0.1);
-        servoExtension.setPosition(0.5);
         servoArm.setPosition(ARM_UP);
         servoColor.setPosition(COLOR_INIT);
-        servoCubesRight.setPosition(CUBES_MAX);
-        servoCubesLeft.setPosition(CUBES_MAX);
+        //servoCubesRight.setPosition(CUBES_MAX);
+        //servoCubesLeft.setPosition(CUBES_MAX);
 
         // Calibrate sensors
         colorSensor.enableLed(true);
         gyroSensor.calibrate();
-        while(gyroSensor.getHeading() != 0);
 
-        telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
-        telemetry.update();
+        //while(gyroSensor.getHeading() != 0);
 
+        //telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
+        //telemetry.update();
     }
 
     // Wait for a number of seconds
@@ -180,13 +172,13 @@ public abstract class AutonomousMode extends LinearOpMode {
         wait(0.5);
 
         servoArm.setPosition(ARM_DOWN);
-        wait(0.5);
+        wait(1.0);
 
         double red = colorSensor.red();
         double green = colorSensor.green();
         double blue = colorSensor.blue();
 
-        wait(1.0);
+        wait(0.5);
 
         telemetry.addData("Red  ", red);
         telemetry.addData("Green", green);
@@ -194,27 +186,27 @@ public abstract class AutonomousMode extends LinearOpMode {
         telemetry.update();
 
         if(red_team) {
-            if(red > blue && red > green){
+            if(red > blue && red > green && opModeIsActive()){
                 servoColor.setPosition(COLOR_BACK);
-            } else if(blue > red && blue > green){
+            } else if(blue > red && blue > green && opModeIsActive()){
                 servoColor.setPosition(COLOR_FORWARD);
             }
         } else if(!red_team) {
-            if (red > blue && red > green) {
+            if (red > blue && red > green && opModeIsActive()) {
                 servoColor.setPosition(COLOR_FORWARD);
-            } else if (blue > red && blue > green) {
+            } else if (blue > red && blue > green && opModeIsActive()) {
                 servoColor.setPosition(COLOR_BACK);
             }
         }
 
-        wait(1.0);
+        wait(0.5);
         servoArm.setPosition(MID_SERVO);
         wait(0.5);
         servoColor.setPosition(COLOR_INIT);
         wait(0.5);
         servoArm.setPosition(ARM_UP);
-        //wait(1.0);
-        //servoColor.setPosition(COLOR_BACK);
+        wait(0.5);
+        servoColor.setPosition(COLOR_BACK);
     }
     //AutonomousBall
 
@@ -247,128 +239,11 @@ public abstract class AutonomousMode extends LinearOpMode {
     }
     //GrabCube
 
-    // Gyro Rotation function using rampUp
-    protected  void rotate_ticks(int target, int trigo){
-        leftMotorF.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        leftMotorB.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        rightMotorF.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        rightMotorB.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-
-        rightMotorF.setTargetPosition(target);
-        rightMotorB.setTargetPosition(target);
-        leftMotorF.setTargetPosition(target);
-        leftMotorB.setTargetPosition(target);
-
-        double power = 0.3, increment = 0.05, MAX_FWD = 0.9;
-        boolean rampUp = true;
-
-
-        while(opModeIsActive()&& (leftMotorB.isBusy() || leftMotorF.isBusy() ||
-                rightMotorB.isBusy() || rightMotorF.isBusy())){
-
-            int heading = gyroSensor.getHeading();
-            telemetry.addData("heading", "%3d deg", heading);
-            telemetry.update();
-            if(leftMotorF.getCurrentPosition() >= target || leftMotorB.getCurrentPosition() >= target ||
-                    rightMotorF.getCurrentPosition() >= target ||rightMotorB.getCurrentPosition() >= target)
-                break;
-            if (rampUp) {
-                // Keep stepping up until we hit the max value.
-                power += increment ;
-                if (power >= MAX_FWD ) {
-                    power = MAX_FWD;
-                    rampUp = !rampUp;   // Switch ramp direction
-                }
-            }
-            else {
-                // Keep stepping down until we hit the min value.
-                power -= increment;
-            }
-
-            power = Range.clip(power, 0, 0.9);
-            power_wheels(-trigo*power, -trigo*power, power, power);
-            idle();
-        }
-        stopWheels();
-    }
-    //RotateTicks
-
-    protected void gyro_turn_pid(int angle){
-        leftMotorF.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        leftMotorB.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightMotorF.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightMotorB.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        double speed ;
-        double pGain = 0.001;  //need to be set
-        double iGain = 0.000;  //need to be set
-        double dGain = 0.000;  //need to be set
-        int errorSum = 0, lastError;
-
-
-        gyroSensor.calibrate();
-        while(gyroSensor.getHeading() != 0);
-
-        int curr = gyroSensor.getHeading();
-        int error = 2;
-        lastError = error;
-        while(opModeIsActive() && error > 1) {
-            curr = gyroSensor.getHeading();
-            if(curr < angle)
-                error = angle - curr;
-            else
-                error = curr - angle;
-            errorSum += error;
-
-            speed = error * pGain + errorSum * iGain + (error-lastError)*dGain;
-            speed = Range.clip(Math.abs(speed), -1.0, 1.0);
-            power_wheels(-speed, -speed, speed, speed);
-
-            lastError = error;
-        }
-    }
-
-    protected void gyro_run_pid(double power){
-        leftMotorF.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        leftMotorB.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightMotorF.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightMotorB.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        double speed, speedL, speedR;
-        double pGain = 0.3;  //need to be set
-        double iGain = 0.2;  //need to be set
-        int errorSum = 0;
-        double dGain = 0.1;  //need to be set
-        double dev;
-
-        speed = speedL = speedR = Range.clip(Math.abs(power), -1.0, 1.0);
-
-        gyroSensor.calibrate();
-        while(gyroSensor.getHeading() != 0);
-
-        int curr = gyroSensor.getHeading();
-        int angle = curr;
-        int error = 1;
-
-        while(opModeIsActive() && error > 0) {
-            curr = gyroSensor.getHeading();
-            error = angle - curr;
-            errorSum += error;
-
-            if(error > 0){
-                speedL = speed + error * pGain + errorSum * iGain;
-                speedR = speed - error * pGain - errorSum * iGain;
-            } else {
-                speedL = speed - error * pGain - errorSum * iGain;
-                speedR = speed + error * pGain + errorSum * iGain;
-            }
-
-            speedL = Range.clip(Math.abs(speedL), -1.0, 1.0);
-            speedR = Range.clip(Math.abs(speedR), -1.0, 1.0);
-            power_wheels(speedL, speedL, speedR, speedR);
-        }
-    }
-
-    protected void gyro_test(int angle, int trigo){
-        double speed = 0.25, mspeed = -0.04;
+    // Function for turning with angle amount in a direction(trigo = 1 for right and trigo = -1 for left)
+    protected void gyro_turn(int angle, int trigo) {
+        double speed = 0.3;
+        double mspeed = -0.03;
+        double fall_speed = 0.0005;
 
         if(trigo == 1)
         {
@@ -378,11 +253,14 @@ public abstract class AutonomousMode extends LinearOpMode {
             telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
             telemetry.update();
 
-            while(opModeIsActive() && (curr < angle)) {
+            while(opModeIsActive() && (curr < angle-1)) {
                 power_wheels(speed, speed, -speed, -speed);
                 curr = gyroSensor.getHeading();
                 telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
                 telemetry.update();
+
+                if(speed > 0.05)
+                    speed -= fall_speed;
             }
 
             while(opModeIsActive() && (curr > angle)) {
@@ -406,12 +284,15 @@ public abstract class AutonomousMode extends LinearOpMode {
             telemetry.addData("mode", "cartesian");
             telemetry.update();
 
-            while(opModeIsActive() && (curr < angle)) {
+            while(opModeIsActive() && (curr < angle-1)) {
                 power_wheels(-speed, -speed, speed, speed);
                 curr = gyroSensor.getHeading();
                 telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
                 telemetry.addData("mode", "cartesian");
                 telemetry.update();
+
+                if(speed > 0.05)
+                    speed -= fall_speed;
             }
 
             while(opModeIsActive() && (curr > angle)) {
@@ -426,10 +307,10 @@ public abstract class AutonomousMode extends LinearOpMode {
 
             telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
             telemetry.update();
-            wait(1.0);
+            wait(0.5);
         }
-
     }
+    //GyroTurn
 
     // Move forward to a target using encoders
     protected void move_with_encoders(int target, int direction, double power) {
@@ -479,11 +360,8 @@ public abstract class AutonomousMode extends LinearOpMode {
 
         relicTrackables.activate();
 
-        int contor = 0;
-
-        while(opModeIsActive() && rez == 0){
-            if(contor > 200000)
-                break;
+        runtime.reset();
+        while(opModeIsActive() && (runtime.seconds() < 2.0)){
 
             RelicRecoveryVuMark vuMark = RelicRecoveryVuMark.from(relicTemplate);
             switch(vuMark) {
@@ -503,10 +381,12 @@ public abstract class AutonomousMode extends LinearOpMode {
                     rez = 0;
                     break;
             }
-            contor++;
+
             telemetry.addData("VuMark", "%d visible", rez);
             telemetry.update();
+            idle();
         }
+
         return rez;
     }
     //ActivateVuforia
@@ -519,15 +399,6 @@ public abstract class AutonomousMode extends LinearOpMode {
         rightMotorB.setPower(Range.clip(rightPowerB, -1, 1));
     }
     //PowerWheels
-
-    // Move the robot based on left and right powers
-    protected void move(double leftWheelsPower, double rightWheelsPower) {
-        leftMotorF.setPower(Range.clip(leftWheelsPower, -1, 1));
-        leftMotorB.setPower(Range.clip(leftWheelsPower, -1, 1));
-        rightMotorF.setPower(Range.clip(rightWheelsPower, -1, 1));
-        rightMotorB.setPower(Range.clip(rightWheelsPower, -1, 1));
-    }
-    //Move
 
     // This function stops all the wheels of the robot
     protected void stopWheels() {
