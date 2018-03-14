@@ -38,13 +38,13 @@ public class Blue_Autonom extends AutonomousMode {
 
         switch (mark){
             case 1 :
-                move_with_encoders(2500, 1, 1);
+                move_with_encoders(3500, 1, 1);
                 break;
             case 2 :
                 move_with_encoders(3500, 1, 1);
                 break;
             case 3 :
-                move_with_encoders(4500, 1, 1);
+                move_with_encoders(3500, 1, 1);
                 break;
             default:
                 move_with_encoders(3500, 1, 1);
@@ -62,9 +62,9 @@ public class Blue_Autonom extends AutonomousMode {
 
         grab_cube(false);
 
-        move_with_encoders(900, 1, 1 );
+        move_with_encoders(900, 1, 1);
 
-        //wait(0.5);
+        move_with_encoders(400, - 1, 1);
 
         telemetry.addData("Done!", "Exiting...");
         telemetry.update();

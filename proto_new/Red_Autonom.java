@@ -13,12 +13,6 @@ public class Red_Autonom extends AutonomousMode {
     @Override
     protected void initOpMode() throws InterruptedException {
         initHardware();
-        telemetry.addData("Done!", "play");
-        telemetry.update();
-
-        wait(0.1);
-        telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
-        telemetry.update();
     }
 
     @Override
@@ -36,13 +30,13 @@ public class Red_Autonom extends AutonomousMode {
         //move(-0.4, 0.4); // dreapta
         switch (mark){
             case 1 :
-                move_with_encoders(4500, 1, 1);
+                move_with_encoders(3500, 1, 1);
                 break;
             case 2 :
                 move_with_encoders(3500, 1, 1);
                 break;
             case 3 :
-                move_with_encoders(2500, 1, 1);
+                move_with_encoders(3500, 1, 1);
                 break;
             default:
                 move_with_encoders(3500, 1, 1);
@@ -61,8 +55,8 @@ public class Red_Autonom extends AutonomousMode {
 
         //move(-0.5, -0.5);
 
-        move_with_encoders(900, 1, 1 );
-
+        move_with_encoders(900, 1, 1);
+        move_with_encoders(400, -1, 1);
         //wait(0.5);
 
         telemetry.addData("Done!", "Exiting...");

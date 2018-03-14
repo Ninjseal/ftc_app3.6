@@ -33,26 +33,25 @@ public abstract class AutonomousMode extends LinearOpMode {
     // Servos
     protected Servo servoArm = null;
     protected Servo servoColor = null;
-    protected Servo servoCubesLeft = null;
-    protected Servo servoCubesRight = null;
+    protected Servo servoCubesDownLeft = null;
+    protected Servo servoCubesDownRight = null;
+    protected Servo servoCubesUpLeft = null;
+    protected Servo servoCubesUpRight = null;
 
     // Sensors
     protected ModernRoboticsI2cGyro gyroSensor = null;
     protected ColorSensor colorSensor = null;
-    //protected OpticalDistanceSensor odsSensor = null;
-    protected ModernRoboticsI2cRangeSensor rangeSensor = null;
 
     // Constants
     protected static final double ARM_UP = 0.96;
-    protected static final double ARM_DOWN = 0.33;
+    protected static final double ARM_DOWN = 0.25;
     protected static final double COLOR_FORWARD = 0.0;
     protected static final double COLOR_BACK = 1.0;
     protected static final double MID_SERVO = 0.5;
     protected static final double COLOR_INIT = 0.85;
-    protected static final double CUBES_MIN = 0.65;
-    protected static final double CUBES_MAX = 0.8;
+    protected static final double CUBES_RELEASE = 0.65;
+    protected static final double CUBES_CATCH = 0.8;
     protected static final double LIFT_MAX = 5000;
-    protected static final double COUNTS_PER_CM = 67;
 
     protected ElapsedTime runtime = new ElapsedTime();
 
@@ -69,7 +68,7 @@ public abstract class AutonomousMode extends LinearOpMode {
             sleep(50);
             idle();
         }
-        //telemetry.addData("Gyro: ", gyroSensor.getHeading());
+        telemetry.addData("Gyro: ", gyroSensor.getHeading());
         telemetry.addData("Status", "Ready to run");    //
         telemetry.update();
 
@@ -98,12 +97,13 @@ public abstract class AutonomousMode extends LinearOpMode {
         // Map the servos
         servoArm = hardwareMap.servo.get("arm");
         servoColor = hardwareMap.servo.get("colorS");
-        servoCubesLeft = hardwareMap.servo.get("cubes_left");
-        servoCubesRight = hardwareMap.servo.get("cubes_right");
+        servoCubesDownLeft = hardwareMap.servo.get("cubes_down_left");
+        servoCubesDownRight = hardwareMap.servo.get("cubes_down_right");
+        servoCubesUpLeft = hardwareMap.servo.get("cubes_up_left");
+        servoCubesUpRight = hardwareMap.servo.get("cubes_up_right");
         // Map the sensors
         gyroSensor = (ModernRoboticsI2cGyro) hardwareMap.gyroSensor.get("gyro");
         colorSensor = hardwareMap.get(ColorSensor.class, "color");
-        rangeSensor = hardwareMap.get(ModernRoboticsI2cRangeSensor.class, "sensor_range");
         // Set the wheel motors
         leftMotorF.setDirection(DcMotor.Direction.FORWARD);
         leftMotorB.setDirection(DcMotor.Direction.FORWARD);
@@ -127,8 +127,10 @@ public abstract class AutonomousMode extends LinearOpMode {
         // Set servo directions
         servoArm.setDirection(Servo.Direction.FORWARD);
         servoColor.setDirection(Servo.Direction.FORWARD);
-        servoCubesLeft.setDirection(Servo.Direction.FORWARD);
-        servoCubesRight.setDirection(Servo.Direction.REVERSE);
+        servoCubesDownLeft.setDirection(Servo.Direction.FORWARD);
+        servoCubesDownRight.setDirection(Servo.Direction.REVERSE);
+        servoCubesUpLeft.setDirection(Servo.Direction.FORWARD);
+        servoCubesUpRight.setDirection(Servo.Direction.REVERSE);
         // Set the motors power to 0
         leftMotorF.setPower(0);
         leftMotorB.setPower(0);
@@ -138,17 +140,14 @@ public abstract class AutonomousMode extends LinearOpMode {
         // Initialize servo positions
         servoArm.setPosition(ARM_UP);
         servoColor.setPosition(COLOR_INIT);
-        //servoCubesRight.setPosition(CUBES_MAX);
-        //servoCubesLeft.setPosition(CUBES_MAX);
+        //servoCubesDownLeft.setPosition(CUBES_RELEASE);
+        //servoCubesDownRight.setPosition(CUBES_RELEASE);
+        //servoCubesUpLeft.setPosition(CUBES_RELEASE);
+        //servoCubesUpRight.setPosition(CUBES_RELEASE);
 
         // Calibrate sensors
         colorSensor.enableLed(true);
         gyroSensor.calibrate();
-
-        //while(gyroSensor.getHeading() != 0);
-
-        //telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
-        //telemetry.update();
     }
 
     // Wait for a number of seconds
@@ -156,7 +155,7 @@ public abstract class AutonomousMode extends LinearOpMode {
         runtime.reset();
         while (opModeIsActive() && (runtime.seconds() < seconds)) {
             //telemetry.addData("Time Elapsed: ", "%2.5f S Elapsed", runtime.seconds());
-            telemetry.update();
+            //telemetry.update();
             idle();
         }
     }
@@ -164,7 +163,6 @@ public abstract class AutonomousMode extends LinearOpMode {
 
     // Autonomous ball selection
     protected void ball_auto(boolean red_team){
-
         servoArm.setPosition(MID_SERVO);
         wait(0.5);
 
@@ -177,8 +175,6 @@ public abstract class AutonomousMode extends LinearOpMode {
         double red = colorSensor.red();
         double green = colorSensor.green();
         double blue = colorSensor.blue();
-
-        wait(0.5);
 
         telemetry.addData("Red  ", red);
         telemetry.addData("Green", green);
@@ -230,43 +226,54 @@ public abstract class AutonomousMode extends LinearOpMode {
     // Toggle function for grabbing the cube
     protected void grab_cube(boolean grab){
         if(grab){
-            servoCubesLeft.setPosition(CUBES_MIN);
-            servoCubesRight.setPosition(CUBES_MIN);
+            servoCubesUpLeft.setPosition(CUBES_CATCH);
+            servoCubesUpRight.setPosition(CUBES_CATCH);
+            servoCubesDownLeft.setPosition(CUBES_CATCH);
+            servoCubesDownRight.setPosition(CUBES_CATCH);
         } else {
-            servoCubesLeft.setPosition(CUBES_MAX);
-            servoCubesRight.setPosition(CUBES_MAX);
+            servoCubesUpLeft.setPosition(CUBES_RELEASE);
+            servoCubesUpRight.setPosition(CUBES_RELEASE);
+            servoCubesDownLeft.setPosition(CUBES_RELEASE);
+            servoCubesDownRight.setPosition(CUBES_RELEASE);
         }
     }
     //GrabCube
 
     // Function for turning with angle amount in a direction(trigo = 1 for right and trigo = -1 for left)
-    protected void gyro_turn(int angle, int trigo) {
-        double speed = 0.3;
-        double mspeed = -0.03;
-        double fall_speed = 0.0005;
+    protected void gyro_turn(int angle, int direction) {
+        double speed = 0.4;
+        double mspeed = -0.04;
+        //double fall_speed = 0.00015;
 
-        if(trigo == 1)
+        if(direction == 1) // Rotatie spre dreapta
         {
             gyroSensor.setHeadingMode(ModernRoboticsI2cGyro.HeadingMode.HEADING_CARDINAL);
             int curr = gyroSensor.getHeading();
 
-            telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
+            telemetry.addData("heading", "%3d deg", curr);
             telemetry.update();
 
-            while(opModeIsActive() && (curr < angle-1)) {
+            power_wheels(speed, speed, -speed, -speed);
+
+            //runtime.reset();
+            while(opModeIsActive() && (curr < angle)) {
                 power_wheels(speed, speed, -speed, -speed);
                 curr = gyroSensor.getHeading();
-                telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
+                telemetry.addData("heading", "%3d deg", curr);
                 telemetry.update();
 
-                if(speed > 0.05)
-                    speed -= fall_speed;
+                if(curr > angle-10)
+                    speed = 0.05;
+
+                //if(speed > 0.05)
+                    //speed -= fall_speed;
             }
 
+            // Daca am depasit valoarea unghiului
             while(opModeIsActive() && (curr > angle)) {
                 power_wheels(mspeed, mspeed, -mspeed, -mspeed);
                 curr = gyroSensor.getHeading();
-                telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
+                telemetry.addData("heading", "%3d deg", curr);
                 telemetry.update();
             }
 
@@ -274,32 +281,33 @@ public abstract class AutonomousMode extends LinearOpMode {
 
             telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
             telemetry.update();
-            wait(1.0);
         }
-        if (trigo == -1){
+        else if (direction == -1){  // Rotatie spre stanga
             gyroSensor.setHeadingMode(ModernRoboticsI2cGyro.HeadingMode.HEADING_CARTESIAN);
             int curr = gyroSensor.getHeading();
 
-            telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
-            telemetry.addData("mode", "cartesian");
+            telemetry.addData("heading", "%3d deg", curr);
             telemetry.update();
 
-            while(opModeIsActive() && (curr < angle-1)) {
+            //runtime.reset();
+            while(opModeIsActive() && (curr < angle)) {
                 power_wheels(-speed, -speed, speed, speed);
                 curr = gyroSensor.getHeading();
-                telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
-                telemetry.addData("mode", "cartesian");
+                telemetry.addData("heading", "%3d deg", curr);
                 telemetry.update();
 
-                if(speed > 0.05)
-                    speed -= fall_speed;
+                if(curr > angle-10)
+                    speed = 0.05;
+
+                //if(speed > 0.05)
+                    //speed -= fall_speed;
             }
 
+            // Daca a depasit valoarea unghiului
             while(opModeIsActive() && (curr > angle)) {
                 power_wheels(-mspeed, -mspeed, mspeed, mspeed);
                 curr = gyroSensor.getHeading();
-                telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
-                telemetry.addData("mode", "cartesian");
+                telemetry.addData("heading", "%3d deg", curr);
                 telemetry.update();
             }
 
@@ -307,8 +315,8 @@ public abstract class AutonomousMode extends LinearOpMode {
 
             telemetry.addData("heading", "%3d deg", gyroSensor.getHeading());
             telemetry.update();
-            wait(0.5);
         }
+        wait(0.5);
     }
     //GyroTurn
 
@@ -341,6 +349,8 @@ public abstract class AutonomousMode extends LinearOpMode {
         leftMotorB.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightMotorF.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightMotorB.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        wait(0.5);
     }
     //MoveWithEncoders
 
@@ -351,7 +361,7 @@ public abstract class AutonomousMode extends LinearOpMode {
 
         parameters.vuforiaLicenseKey = "AcO14uD/////AAAAmUILEtDJVkPbjdTr7NZGRE1UskK3HPIjKtoC7tONYCaYenUf9sRjducLbUEn0Cu8Eh3lrEVqM7VbF5MXcNfFyS39uTN3t7PtjK8HLcFpFsgTLRFwAGJlhcX+OFgqsjzPSiyE8v7Z+XIYwMhKf2Z2XmTQOCa6vXLL30nw3iLnE6J2Q5QFnNw/+AFLA881KCVYSeGBtujTRvfloxYCMYon30C1uwWB0txP4s7K1FukBiyfKScQFj7CwS+27BsSajo8lstaPwlSw5LssYO0cEbNQmi31q1meclqCkTL0nRVZcdj+UrfutQms0Ledjs6N8+bQg/qxo//KsFZ7pGZsCO3HIyrVKTEadLDzg+3KV7EJhNV";
 
-        parameters.cameraDirection = VuforiaLocalizer.CameraDirection.BACK;
+        parameters.cameraDirection = VuforiaLocalizer.CameraDirection.FRONT;
         this.vuforia = ClassFactory.createVuforiaLocalizer(parameters);
 
         VuforiaTrackables relicTrackables = this.vuforia.loadTrackablesFromAsset("RelicVuMark");
@@ -361,7 +371,10 @@ public abstract class AutonomousMode extends LinearOpMode {
         relicTrackables.activate();
 
         runtime.reset();
-        while(opModeIsActive() && (runtime.seconds() < 2.0)){
+        while(opModeIsActive() && (runtime.seconds() < 1.5)){
+
+            if(runtime.seconds() > 1.5)
+                break;
 
             RelicRecoveryVuMark vuMark = RelicRecoveryVuMark.from(relicTemplate);
             switch(vuMark) {
@@ -384,7 +397,7 @@ public abstract class AutonomousMode extends LinearOpMode {
 
             telemetry.addData("VuMark", "%d visible", rez);
             telemetry.update();
-            idle();
+            //idle();
         }
 
         return rez;
