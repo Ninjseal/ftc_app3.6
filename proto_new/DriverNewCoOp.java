@@ -6,9 +6,10 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 
 /**
- * Created by Alin on 12.23.2017
+ * Created by Robo-Sapiens on 23/03/2018.
  */
 
 @TeleOp(name = "DriverCoOp", group = "TeleOp")
@@ -25,7 +26,7 @@ public class DriverNewCoOp extends LinearOpMode {
     private DcMotor rightMotorB = null;
     //Servos
     private Servo servoClaw = null;
-    private Servo servoExtension  = null;
+    private Servo servoExtension = null;
     private Servo servoArm = null;
     private Servo servoColor = null;
     private Servo servoCubesDownLeft = null;
@@ -34,15 +35,16 @@ public class DriverNewCoOp extends LinearOpMode {
     private Servo servoCubesUpRight = null;
     //Constants
     private static final double CLAW_UP = 0.0;
-    private static final double CLAW_DOWN = 0.5;
+    private static final double CLAW_DOWN = 0.9;
     private static final double EXTENSION_UP = 0.0;
     private static final double EXTENSION_MID = 0.5;
     private static final double EXTENSION_DOWN = 1.0;
+	private static final double EXTENSION_SPEED = 0.02;
     private static final double ARM_UP = 0.96;
     private static final double COLOR_FORWARD = 0.0;
     private static final double COLOR_BACK = 1.0;
     private static final double MID_SERVO = 0.5;
-    private static final double CUBES_RELEASE = 0.65;
+    private static final double CUBES_RELEASE = 0.6;
     private static final double CUBES_CATCH = 0.8;
     // Additional helper variables
     private double clipValue = 0.9;
@@ -54,8 +56,8 @@ public class DriverNewCoOp extends LinearOpMode {
 
     private double cubesPower = 1;
 
-    //private boolean switchServoCubesLeft = false;
-    //private boolean switchServoCubesRight = false;
+    private double extensionPosition = 0.5;
+
     private boolean switchServoCubesUp = false;
     private boolean switchServoCubesDown = false;
     private boolean relic_mode = false;
@@ -81,8 +83,6 @@ public class DriverNewCoOp extends LinearOpMode {
         servoCubesDownRight = hardwareMap.servo.get("cubes_down_right");
         servoCubesUpLeft = hardwareMap.servo.get("cubes_up_left");
         servoCubesUpRight = hardwareMap.servo.get("cubes_up_right");
-        //servoCubesLeft = hardwareMap.servo.get("cubes_left");
-        //servoCubesRight = hardwareMap.servo.get("cubes_right");
         // Set wheel motor directions
         leftMotorF.setDirection(DcMotor.Direction.FORWARD);
         leftMotorB.setDirection(DcMotor.Direction.FORWARD);
@@ -93,13 +93,14 @@ public class DriverNewCoOp extends LinearOpMode {
         leftMotorB.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightMotorF.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightMotorB.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+		cubesMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE)
         //Set the relic mechanism direction
         relicLMotor.setDirection(DcMotor.Direction.FORWARD);
         relicRMotor.setDirection(DcMotor.Direction.REVERSE);
         // Set the cubes mechanism direction
         cubesMotor.setDirection(DcMotor.Direction.FORWARD);
         // Set servo directions
-        servoClaw.setDirection(Servo.Direction.REVERSE );
+        servoClaw.setDirection(Servo.Direction.REVERSE);
         servoExtension.setDirection(Servo.Direction.FORWARD);
         servoArm.setDirection(Servo.Direction.FORWARD);
         servoColor.setDirection(Servo.Direction.FORWARD);
@@ -107,8 +108,6 @@ public class DriverNewCoOp extends LinearOpMode {
         servoCubesDownRight.setDirection(Servo.Direction.REVERSE);
         servoCubesUpLeft.setDirection(Servo.Direction.FORWARD);
         servoCubesUpRight.setDirection(Servo.Direction.REVERSE);
-        //servoCubesLeft.setDirection(Servo.Direction.FORWARD);
-        //servoCubesRight.setDirection(Servo.Direction.REVERSE);
         // Set the motors power to 0
         relicLMotor.setPower(0);
         relicRMotor.setPower(0);
@@ -119,17 +118,14 @@ public class DriverNewCoOp extends LinearOpMode {
         rightMotorB.setPower(0);
         // Initialize servo positions
         servoClaw.setPosition(CLAW_DOWN);
-        servoExtension.setPosition(EXTENSION_UP);
+        servoExtension.setPosition(EXTENSION_MID);
         servoArm.setPosition(ARM_UP);
         servoColor.setPosition(COLOR_BACK);
-        servoCubesDownLeft.setPosition(CUBES_RELEASE);
-        servoCubesDownRight.setPosition(CUBES_RELEASE);
-        servoCubesUpLeft.setPosition(CUBES_RELEASE);
-        servoCubesUpRight.setPosition(CUBES_RELEASE);
-        //servoCubesRight.setPosition(CUBES_MIN);
-        //servoCubesLeft.setPosition(CUBES_MIN);
-
-        telemetry.addData("Say", "Hello Driver!");
+        servoCubesDownLeft.setPosition(CUBES_CATCH);
+        servoCubesDownRight.setPosition(CUBES_CATCH);
+        servoCubesUpLeft.setPosition(CUBES_CATCH);
+        servoCubesUpRight.setPosition(CUBES_CATCH);
+		
         telemetry.addData("Status", "Initialized");
         telemetry.addData(">", "Press Start to run the motors.");
         telemetry.update();
@@ -151,17 +147,17 @@ public class DriverNewCoOp extends LinearOpMode {
             if (Math.abs(leftWheelsPower) < deadzone) leftWheelsPower = 0;
             if (Math.abs(rightWheelsPower) < deadzone) rightWheelsPower = 0;
 
-            if(leftWheelsPower > clipValue) {
+            if (leftWheelsPower > clipValue) {
                 leftWheelsPower = clipValue;
             }
-            if(rightWheelsPower > clipValue) {
+            if (rightWheelsPower > clipValue) {
                 rightWheelsPower = clipValue;
             }
 
-            if(leftWheelsPower < -clipValue ) {
+            if (leftWheelsPower < -clipValue) {
                 leftWheelsPower = -clipValue;
             }
-            if(rightWheelsPower < -clipValue) {
+            if (rightWheelsPower < -clipValue) {
                 rightWheelsPower = -clipValue;
             }
 
@@ -180,42 +176,48 @@ public class DriverNewCoOp extends LinearOpMode {
             /*** GAMEPAD 2 CODE ***/
 
             // Switch Mode mechanism
-            if((gamepad2.back == true) && (runtime.seconds() > 2.0)) {
+            if ((gamepad2.left_bumper) && (runtime.seconds() > 1.5)) {
                 runtime.reset();
                 relic_mode = !relic_mode;
-                telemetry.addData("RelicMode", relic_mode);
-                telemetry.update();
             }
 
             // Relic Mode
-            if(relic_mode == true) {
+            if (relic_mode) {
                 // Relic mechanism right Motor
-                if(gamepad2.right_stick_y > relicDeadzone) {
+                if (gamepad2.right_stick_y > relicDeadzone) {
                     relicRMotor.setPower(relicPower);
-                } else if(gamepad2.right_stick_y < -relicDeadzone) {
+                } else if (gamepad2.right_stick_y < -relicDeadzone) {
                     relicRMotor.setPower(-relicPower);
                 } else relicRMotor.setPower(0);
 
                 //Relic mechanism left Motor
-                if(gamepad2.left_stick_y > relicDeadzone) {
+                if (gamepad2.left_stick_y > relicDeadzone) {
                     relicLMotor.setPower(relicPower);
-                } else if(gamepad2.left_stick_y < -relicDeadzone) {
+                } else if (gamepad2.left_stick_y < -relicDeadzone) {
                     relicLMotor.setPower(-relicPower);
                 } else relicLMotor.setPower(0);
 
                 //Servo Extension Mechanism
                 if (gamepad2.x) {
-                    servoExtension.setPosition(EXTENSION_DOWN);  // Servo Extension DOWN position
+                    extensionPosition += EXTENSION_SPEED;
+                    extensionPosition = Range.clip(extensionPosition, EXTENSION_UP, EXTENSION_DOWN);
+                    //servoExtension.setPosition(EXTENSION_DOWN);  // Servo Extension DOWN position
                 } else if (gamepad2.y) {
-                    servoExtension.setPosition(EXTENSION_UP);  // Servo Extension UP position
-                }
+                    extensionPosition -= EXTENSION_SPEED;
+                    extensionPosition = Range.clip(extensionPosition, EXTENSION_UP, EXTENSION_DOWN);
+                    //servoExtension.setPosition(EXTENSION_UP);  // Servo Extension UP position
+                } else
+                    extensionPosition = EXTENSION_MID;
                 // Servo Claw Mechanism
-                if (gamepad2.left_bumper) {
+                if (gamepad2.a) {
                     servoClaw.setPosition(CLAW_DOWN);  // Strange ghiara / Prinde relicva
-                } else if (gamepad2.right_bumper){
+                } else if (gamepad2.b) {
                     servoClaw.setPosition(CLAW_UP);   // Ridica ghiara / Elibereaza relicva
                 }
+
+                servoExtension.setPosition(extensionPosition);  // Servo Extension position
             }
+
             // Normal Mode
             else {
                 // Servo Cubes Mechanism
@@ -230,8 +232,8 @@ public class DriverNewCoOp extends LinearOpMode {
                     switchServoCubesDown = false;
                 }
                 if (gamepad2.x && !switchServoCubesUp) {
-                    servoCubesUpLeft.setPosition(CUBES_CATCH);
-                    servoCubesUpRight.setPosition(CUBES_CATCH);
+                    servoCubesUpLeft.setPosition(CUBES_CATCH-0.05);
+                    servoCubesUpRight.setPosition(CUBES_CATCH-0.05);
                     switchServoCubesUp = true;
                 }
                 if (gamepad2.y && switchServoCubesUp) {
@@ -250,114 +252,20 @@ public class DriverNewCoOp extends LinearOpMode {
                 }
             }
 
-            /*if(gamepad1.left_trigger != 0) {
-                 servoCubesLeft.setPosition(CUBES_MAX);
-                switchServoCubesLeft = true;
-            } else if(switchServoCubesLeft) {
-                servoCubesLeft.setPosition(CUBES_MIN);
-                switchServoCubesLeft = false;
-            }
-
-            if(gamepad1.right_trigger != 0) {
-                servoCubesRight.setPosition(CUBES_MAX);
-                switchServoCubesRight = true;
-            } else if(switchServoCubesRight) {
-                servoCubesRight.setPosition(CUBES_MIN);
-                switchServoCubesRight = false;
-            }*/
-
-            /*if (gamepad2.a && !switchServoCubes) {
-                servoCubesRight.setPosition(CUBES_MAX);
-                servoCubesLeft.setPosition(CUBES_MAX);
-                switchServoCubes = true;
-            }
-            if (gamepad2.b && switchServoCubes) {
-                servoCubesRight.setPosition(CUBES_MIN);
-                servoCubesLeft.setPosition(CUBES_MIN);
-                switchServoCubes = false;
-            }
-            if(gamepad2.x){
-                servoCubesRight.setPosition(0.55);
-                servoCubesLeft.setPosition(0.55);
-            }*/
-
-           /* if (relicPower == 1) {
-                relicRPower = -gamepad2.right_stick_y;
-            }
-
-                if (Math.abs(relicRPower) < deadzone) relicRPower = 0;
-
-                if(relicRPower > relicPower) {
-                    relicRPower = relicPower;
-                }
-                if(relicRPower < -relicPower) {
-                    relicRPower = -relicPower;
-                }
-
-            if (gamepad2.dpad_up) {
-                relicRMotor.setPower(relicPower);
-            } else if (gamepad1.dpad_down) {
-                relicRMotor.setPower(-relicPower);
-            } else{
-                relicRMotor.setPower(0);  // Stop the motor
-            }
-            */
-
-            /*if (relicPower == 1) {
-                relicLPower = -gamepad2.left_stick_y;
-            }
-
-                if (Math.abs(relicLPower) < deadzone) relicLPower = 0;
-
-                if(relicLPower > relicPower) {
-                    relicLPower = relicPower;
-                }
-                if(relicLPower < -relicPower) {
-                    relicLPower = -relicPower;
-                }
-
-
-            if (gamepad2.dpad_right) {
-                relicLMotor.setPower(relicPower);
-            } else if (gamepad2.dpad_left) {
-                relicLMotor.setPower(-relicPower);
-            } else{
-                relicLMotor.setPower(0);   // Stop the motor
-            } */
-
-            // Servo Claw Mechanism
-            /*if (gamepad1.a) {
-                servoClaw.setPosition(CLAW_UP);  // Servo Claw UP position
-            }else if (gamepad1.b){
-                servoClaw.setPosition(CLAW_DOWN);
-            }*/
-
-            /*// Servo Arm Mechanism
-            if  (gamepad2.a) {
-                servoArm.setPosition(ARM_DOWN);  // Servo Arm DOWN position
-            } else{
-                servoArm.setPosition(ARM_UP);  // Servo Arm UP position
-            }*/
-            /*// Servo Color Mechanism
-            if (gamepad2.x) //(Blue){
-                servoColor.setPosition(COLOR_RIGHT);  // Servo Color RIGHT position
-             else if (gamepad2.y) //(Red){
-                servoColor.setPosition(COLOR_LEFT);  // Servo Color LEFT position
-             else{ servoColor.setPosition(MID_SERVO);}*/
-
-            // Telemetry Data
-            telemetry.addData("leftWheelsPower", leftWheelsPower);
-            telemetry.addData("rightWheelsPower", rightWheelsPower);
-            telemetry.addData("" + ">", "Press Stop to end test.");
-            telemetry.update();
-            idle();
-        }
-
-        stopMotors();  // Stop all the motors
+			// Telemetry Data
+			telemetry.addData("RelicMode", relic_mode);
+			telemetry.addData("leftWheelsPower", leftWheelsPower);
+			telemetry.addData("rightWheelsPower", rightWheelsPower);
+			telemetry.update();
+			sleep(20);
+			idle();
+		}
+		
+		stopMotors();  // Stop all the motors
     }
 
-    // This function stops all the motors of the robot
-    public void stopMotors(){
+	// This function stops all the motors of the robot
+    public void stopMotors() {
         relicLMotor.setPower(0);
         relicRMotor.setPower(0);
         leftMotorF.setPower(0);
@@ -365,7 +273,7 @@ public class DriverNewCoOp extends LinearOpMode {
         rightMotorF.setPower(0);
         rightMotorB.setPower(0);
         cubesMotor.setPower(0);
+
     }
     //StopMotors
-
 }
